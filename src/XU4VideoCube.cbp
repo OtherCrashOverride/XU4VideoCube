@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="XU4VideoCube" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/XU4VideoCube" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-std=c++11" />
+					<Add option="-g" />
+					<Add option="-DDEBUG=1" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/XU4VideoCube" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-std=c++11" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Linker>
+			<Add library="mali" />
+			<Add library="X11" />
+			<Add directory="/usr/lib/arm-linux-gnueabihf/mali-egl/" />
+		</Linker>
+		<Unit filename="CodecData.cpp" />
+		<Unit filename="CodecData.h" />
+		<Unit filename="Egl.cpp" />
+		<Unit filename="Egl.h" />
+		<Unit filename="EglException.cpp" />
+		<Unit filename="EglException.h" />
+		<Unit filename="Exception.cpp" />
+		<Unit filename="Exception.h" />
+		<Unit filename="Matrix4.cpp" />
+		<Unit filename="Matrix4.h" />
+		<Unit filename="NV12Shader.cpp" />
+		<Unit filename="OpenGL.cpp" />
+		<Unit filename="OpenGLException.cpp" />
+		<Unit filename="OpenGLException.h" />
+		<Unit filename="Scene.cpp" />
+		<Unit filename="Scene.h" />
+		<Unit filename="Vector3.cpp" />
+		<Unit filename="Vector3.h" />
+		<Unit filename="X11Window.cpp" />
+		<Unit filename="X11Window.h" />
+		<Unit filename="main.cpp" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

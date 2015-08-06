@@ -1,0 +1,113 @@
+# depslib dependency file v1.0
+1438876779 source:/home/odroid/src/XU4VideoCube/main.cpp
+	"X11Window.h"
+	"Matrix4.h"
+	"NV12Shader.h"
+	"OpenGL.h"
+	"CodecData.h"
+	"Scene.h"
+	<GLES2/gl2.h>
+	<queue>
+	<stdio.h>
+	<fcntl.h>
+	<unistd.h>
+	<string.h>
+	<thread>
+
+1438619775 source:/home/odroid/src/XU4VideoCube/Exception.cpp
+	"Exception.h"
+	<stdio.h>
+
+1438619775 /home/odroid/src/XU4VideoCube/Exception.h
+	<exception>
+	<string>
+
+1438871582 source:/home/odroid/src/XU4VideoCube/Egl.cpp
+	"Egl.h"
+	"EglException.h"
+	<memory>
+
+1438624523 /home/odroid/src/XU4VideoCube/Egl.h
+	<X11/X.h>
+	<EGL/egl.h>
+
+1438619949 /home/odroid/src/XU4VideoCube/EglException.h
+	"Exception.h"
+	<string>
+
+1438619679 source:/home/odroid/src/XU4VideoCube/EglException.cpp
+	"EglException.h"
+	<EGL/egl.h>
+
+1438870065 /home/odroid/src/XU4VideoCube/X11Window.h
+	<EGL/egl.h>
+
+1438629379 source:/home/odroid/src/XU4VideoCube/CodecData.cpp
+	"CodecData.h"
+
+1438691440 /home/odroid/src/XU4VideoCube/CodecData.h
+	"Exception.h"
+	<memory>
+	<linux/videodev2.h>
+	<sys/ioctl.h>
+	<sys/mman.h>
+	<vector>
+
+1438877229 source:/home/odroid/src/XU4VideoCube/NV12Shader.cpp
+	"NV12Shader.h"
+	"OpenGL.h"
+	"Exception.h"
+
+1438680517 /home/odroid/src/XU4VideoCube/NV12Shader.h
+	<GLES2/gl2.h>
+
+1438678442 /home/odroid/src/XU4VideoCube/OpenGL.h
+
+1438699132 source:/home/odroid/src/XU4VideoCube/OpenGL.cpp
+	"OpenGL.h"
+	<GLES2/gl2.h>
+	"OpenGLException.h"
+
+1438680570 /home/odroid/src/XU4VideoCube/OpenGLException.h
+	"Exception.h"
+
+1438869349 source:/home/odroid/src/XU4VideoCube/Matrix4.cpp
+	"Matrix4.h"
+	"Exception.h"
+	<cmath>
+
+1438869400 /home/odroid/src/XU4VideoCube/Matrix4.h
+	"Vector3.h"
+
+1438680632 source:/home/odroid/src/XU4VideoCube/OpenGLException.cpp
+	"OpenGLException.h"
+	<GLES2/gl2.h>
+
+1438687449 /home/odroid/src/XU4VideoCube/Vector3.h
+	<cmath>
+
+1438687151 source:/home/odroid/src/XU4VideoCube/Vector3.cpp
+	"Vector3.h"
+
+1438876214 source:/home/odroid/src/XU4VideoCube/X11Window.cpp
+	"X11Window.h"
+	"Egl.h"
+	"Exception.h"
+	"OpenGL.h"
+	<stdio.h>
+	<X11/Xlib.h>
+	<X11/keysym.h>
+	<X11/XKBlib.h>
+	<memory>
+	<GLES2/gl2.h>
+
+1438864532 /home/odroid/src/XU4VideoCube/Scene.h
+	<GLES2/gl2.h>
+
+1438871498 source:/home/odroid/src/XU4VideoCube/Scene.cpp
+	"Scene.h"
+	"Exception.h"
+	"Matrix4.h"
+	"NV12Shader.h"
+	"OpenGL.h"
+
