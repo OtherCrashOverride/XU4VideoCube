@@ -29,7 +29,8 @@ int main()
 
 
     //[    4.138152] [c7] s5p-mfc 11000000.mfc: decoder registered as /dev/video6
-    const char* decoderName = "/dev/video6";
+	//[    2.236569] s5p-mfc 11000000.codec:: decoder registered as /dev/video10
+    const char* decoderName = "/dev/video10";
 
 
     // O_NONBLOCK prevents deque operations from blocking if no buffers are ready
@@ -49,10 +50,12 @@ int main()
         throw Exception("VIDIOC_QUERYCAP failed.");
     }
 
-    if ((cap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) == 0 ||
-            (cap.capabilities & V4L2_CAP_VIDEO_OUTPUT_MPLANE) == 0 ||
-            (cap.capabilities & V4L2_CAP_STREAMING) == 0)
+    if ((cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE) == 0 ||
+        (cap.capabilities & V4L2_CAP_STREAMING) == 0)
     {
+		printf("V4L2_CAP_VIDEO_M2M_MPLANE=%d\n", (cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE) != 0);
+		printf("V4L2_CAP_STREAMING=%d\n", (cap.capabilities & V4L2_CAP_STREAMING) != 0);
+	
         throw Exception("Insufficient capabilities of MFC device.");
     }
 
@@ -61,7 +64,7 @@ int main()
     /* This is the size of the buffer for the compressed stream.
      * It limits the maximum compressed frame size. */
     const int STREAM_BUFFER_SIZE = (1024 * 1024);
-    /* The number of compress4ed stream buffers */
+    /* The number of compressed stream buffers */
     const int STREAM_BUFFER_CNT = 8;
 
 
@@ -76,13 +79,14 @@ int main()
         throw Exception("Input format not supported.");
 
     // Reqest input buffers
+	printf("Requesting input buffers.\n");
     std::vector<std::shared_ptr<MediaStreamCodecData>> inBuffers =
                 CodecData::RequestBuffers<MediaStreamCodecData>(mfc_fd,
                         V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
                         V4L2_MEMORY_MMAP,
                         STREAM_BUFFER_CNT,
                         false);
-
+	printf("Requesting input buffers = OK.\n");
 
     // Codec output
     v4l2_format fmtOut = {0};
@@ -182,21 +186,22 @@ int main()
 
                     // Enque the data to the codec
                     v4l2_buffer qbuf = {0};
-                    v4l2_plane qplanes[1];
+					v4l2_plane qplanes = { 0 }; //v4l2_plane qplanes[1];
 
                     // bytes.size() - 4 is the data without the next startcode
-                    qplanes[0].bytesused = (uint)(bytes.size() - 4);
+                    qplanes.bytesused = (uint)(bytes.size() - 4);
 
                     qbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
                     qbuf.memory = V4L2_MEMORY_MMAP;
                     qbuf.index = (uint)currentBuffer;
-                    qbuf.m.planes = qplanes;
+                    qbuf.m.planes = &qplanes;
                     qbuf.length = 1;
 
                     ret = ioctl(mfc_fd, VIDIOC_QBUF, &qbuf);
                     if (ret != 0)
                     {
-                        throw Exception("VIDIOC_QBUF failed.");
+						perror("VIDIOC_QBUF failed");
+                        throw Exception("VIDIOC_QBUF failed");
                     }
 
                     queueAccepted = true;
@@ -374,11 +379,11 @@ int main()
         // Clear the data
         bytes.clear();
 
-            // Add the start code back
-            bytes.push_back(0x00);
-            bytes.push_back(0x00);
-            bytes.push_back(0x00);
-            bytes.push_back(0x01);
+        // Add the start code back
+        bytes.push_back(0x00);
+        bytes.push_back(0x00);
+        bytes.push_back(0x00);
+        bytes.push_back(0x01);
         }
     }
 

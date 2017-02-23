@@ -1,7 +1,9 @@
 #pragma once
 
+#include "OpenGL.h"
 
-#include <GLES2/gl2.h>
+//#include <GLES2/gl2.h>
+
 enum class SceneMode
 {
     Cube = 0,

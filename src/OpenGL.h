@@ -1,11 +1,14 @@
 #pragma once
 
-    class OpenGL
-    {
-        public:
+#define GL_GLEXT_PROTOTYPES
+#include <GLES2/gl2.h>
 
-         static void CheckError();
+class OpenGL
+{
+    public:
+
+        static void CheckError();
 
 
-    };
+};
 

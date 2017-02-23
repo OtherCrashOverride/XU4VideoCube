@@ -3,7 +3,7 @@
 #include "Exception.h"
 #include "Matrix4.h"
 #include "NV12Shader.h"
-#include "OpenGL.h"
+
 
 //Draws a series of triangles (three-sided polygons) using vertices v0, v1, v2, then v2, v1, v3 (note the order), then v2, v3, v4, and so on.
 const float Scene::quadx[]
