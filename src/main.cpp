@@ -11,7 +11,17 @@
 #include <unistd.h>
 #include <string.h>
 #include <thread>
+#include <signal.h>
 
+
+bool isRunning;
+
+
+// Signal handler for Ctrl-C
+void SignalHandler(int s)
+{
+	isRunning = false;
+}
 
 
 int main()
@@ -138,7 +148,11 @@ int main()
     unsigned char buffer[bufferCount];
     int offset = bufferCount;
 
-    bool isRunning = true;
+    isRunning = true;
+
+	// Trap signal to clean up
+	signal(SIGINT, SignalHandler);
+
     while (isRunning)
     {
         // Reading a single byte at a time is very slow.
@@ -186,15 +200,15 @@ int main()
 
                     // Enque the data to the codec
                     v4l2_buffer qbuf = {0};
-					v4l2_plane qplanes = { 0 }; //v4l2_plane qplanes[1];
+					v4l2_plane qplanes[4] = { 0 }; //v4l2_plane qplanes[1];
 
                     // bytes.size() - 4 is the data without the next startcode
-                    qplanes.bytesused = (uint)(bytes.size() - 4);
+                    qplanes[0].bytesused = (uint)(bytes.size() - 4);
 
                     qbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
                     qbuf.memory = V4L2_MEMORY_MMAP;
                     qbuf.index = (uint)currentBuffer;
-                    qbuf.m.planes = &qplanes;
+                    qbuf.m.planes = qplanes;
                     qbuf.length = 1;
 
                     ret = ioctl(mfc_fd, VIDIOC_QBUF, &qbuf);
@@ -211,7 +225,7 @@ int main()
                 if (isStreaming)
                 {
                     // Note: Must have valid planes because its written to by codec
-                    v4l2_plane dqplanes[2];
+					v4l2_plane dqplanes[4] = { 0 };
 
                     v4l2_buffer dqbuf = {0};
 
@@ -246,7 +260,7 @@ int main()
 
 
                     // Deque input
-                    v4l2_plane dqplanes2[1];
+                    v4l2_plane dqplanes2[4];
 
                     dqbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
                     dqbuf.memory = V4L2_MEMORY_MMAP;
@@ -386,6 +400,18 @@ int main()
         bytes.push_back(0x01);
         }
     }
+
+	// Stop streaming the capture
+	if (isStreaming)
+	{
+		int val = (int)V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+
+		ret = ioctl(mfc_fd, VIDIOC_STREAMOFF, &val);
+		if (ret != 0)
+		{
+			throw Exception("VIDIOC_STREAMOFF failed.");
+		}
+	}
 
     close(fd);
     close(mfc_fd);
