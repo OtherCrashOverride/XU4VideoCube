@@ -152,6 +152,7 @@ int main()
 
 	// Trap signal to clean up
 	signal(SIGINT, SignalHandler);
+	int counter = 0;
 
     while (isRunning)
     {
@@ -210,6 +211,7 @@ int main()
                     qbuf.index = (uint)currentBuffer;
                     qbuf.m.planes = qplanes;
                     qbuf.length = 1;
+					qbuf.timestamp.tv_sec = counter++;
 
                     ret = ioctl(mfc_fd, VIDIOC_QBUF, &qbuf);
                     if (ret != 0)
@@ -243,6 +245,8 @@ int main()
                     else
                     {
                         //printf("V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE buffer dequeued.\n");
+
+						printf("main: dqbuf.timestamp.tv_sec=%ld\n", dqbuf.timestamp.tv_sec);
 
                         scene.Draw(decodeBuffers[(int)dqbuf.index]->GetY()->Address,
                                    decodeBuffers[(int)dqbuf.index]->GetVU()->Address);
