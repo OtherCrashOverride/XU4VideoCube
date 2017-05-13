@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include "X11Window.h"
 #include "Matrix4.h"
 #include "NV12Shader.h"
@@ -12,6 +14,7 @@
 #include <string.h>
 #include <thread>
 #include <signal.h>
+
 
 
 bool isRunning;
@@ -219,30 +222,41 @@ int main()
 
 	sw.Start();
 
+	auto t0 = std::chrono::system_clock::now();
+
     while (isRunning)
     {
 #if 0
-		// Measure FPS
-		//++frames;
-		totalTime += (float)sw.Elapsed(); //GetTime();
-		//printf("totalTime=%f\n", totalTime);
-
-		if (totalTime >= 1.0f)
+		if (frames >= 60)
 		{
-			int fps = (int)(frames / totalTime);
-			fprintf(stderr, "FPS: %i\n", fps);
+			auto t1 = std::chrono::system_clock::now();
+			std::chrono::duration<double> diff = t1 - t0;
 
-			frames = 0;
-			totalTime = 0;
+			// Measure FPS
+			//++frames;
+			//totalTime += (float)sw.Elapsed(); //GetTime();
+			totalTime += (float)diff.count(); //GetTime();
+											  //printf("totalTime=%f\n", totalTime);
+
+			//if (totalTime >= 1.0f)
+			{
+				int fps = (int)(frames / totalTime);
+				fprintf(stderr, "FPS: %i\n", fps);
+
+				frames = 0;
+				totalTime = 0;
+			}
+
+			t0 = t1;
 		}
-
-		sw.Reset();
 #endif
+
 
 #if 0
 		timeval startTime;
 		gettimeofday(&startTime, NULL);
 #endif
+
 
         // Reading a single byte at a time is very slow.
         // Fill a buffer and read from that instead.
@@ -336,12 +350,38 @@ int main()
 
 						//printf("main: dqbuf.timestamp.tv_sec=%ld\n", dqbuf.timestamp.tv_sec);
 
+#if 0
                         scene.Draw(decodeBuffers[(int)dqbuf.index]->GetY()->Address,
                                    decodeBuffers[(int)dqbuf.index]->GetVU()->Address);
 
                         window.SwapBuffers();
+#endif
 
 						++frames;
+
+#if 1
+						auto t1 = std::chrono::system_clock::now();
+						std::chrono::duration<double> diff = t1 - t0;
+
+						// Measure FPS
+						//++frames;
+						//totalTime += (float)sw.Elapsed(); //GetTime();
+						totalTime += (float)diff.count(); //GetTime();
+														  //printf("totalTime=%f\n", totalTime);
+
+						if (totalTime >= 1.0f)
+						{
+							int fps = (int)(frames / totalTime);
+							fprintf(stderr, "FPS: %i\n", fps);
+
+							frames = 0;
+							totalTime = 0;
+						}
+
+						t0 = t1;
+
+						//sw.Reset();
+#endif
 
                         // Re-queue buffer
                         ret = ioctl(mfc_fd, VIDIOC_QBUF, &dqbuf);
