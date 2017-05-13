@@ -16,6 +16,65 @@
 
 bool isRunning;
 
+class Stopwatch
+{
+	timeval startTime;
+	timeval endTime;
+	double elapsed = 0;
+	bool isRunning = false;
+
+
+public:
+
+	Stopwatch()
+	{
+		Reset();
+	}
+
+
+
+	void Start()
+	{
+		if (isRunning)
+			throw Exception();
+
+		gettimeofday(&startTime, NULL);
+
+		isRunning = true;
+	}
+
+	void Stop()
+	{
+		if (!isRunning)
+			throw Exception();
+
+		gettimeofday(&endTime, NULL);
+
+		isRunning = false;
+		elapsed = Elapsed();
+	}
+
+	void Reset()
+	{
+		elapsed = 0;
+
+		gettimeofday(&startTime, NULL);
+		endTime = startTime;
+	}
+
+	double Elapsed()
+	{
+		if (isRunning)
+		{
+			gettimeofday(&endTime, NULL);
+		}
+
+		double seconds = (endTime.tv_sec - startTime.tv_sec);
+		double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
+
+		return elapsed + seconds + milliseconds;
+	}
+};
 
 // Signal handler for Ctrl-C
 void SignalHandler(int s)
@@ -31,6 +90,7 @@ int main()
     printf("  Escape   - exit\n");
     printf("\n");
 
+	Stopwatch sw;
     X11Window window(1280, 720, "Odroid XU4 Video Cube");
 
 
@@ -152,10 +212,38 @@ int main()
 
 	// Trap signal to clean up
 	signal(SIGINT, SignalHandler);
+	
 	int counter = 0;
+	int frames = 0;
+	float totalTime = 0;
+
+	sw.Start();
 
     while (isRunning)
     {
+#if 0
+		// Measure FPS
+		//++frames;
+		totalTime += (float)sw.Elapsed(); //GetTime();
+		//printf("totalTime=%f\n", totalTime);
+
+		if (totalTime >= 1.0f)
+		{
+			int fps = (int)(frames / totalTime);
+			fprintf(stderr, "FPS: %i\n", fps);
+
+			frames = 0;
+			totalTime = 0;
+		}
+
+		sw.Reset();
+#endif
+
+#if 0
+		timeval startTime;
+		gettimeofday(&startTime, NULL);
+#endif
+
         // Reading a single byte at a time is very slow.
         // Fill a buffer and read from that instead.
         if (offset >= bufferCount)
@@ -246,13 +334,14 @@ int main()
                     {
                         //printf("V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE buffer dequeued.\n");
 
-						printf("main: dqbuf.timestamp.tv_sec=%ld\n", dqbuf.timestamp.tv_sec);
+						//printf("main: dqbuf.timestamp.tv_sec=%ld\n", dqbuf.timestamp.tv_sec);
 
                         scene.Draw(decodeBuffers[(int)dqbuf.index]->GetY()->Address,
                                    decodeBuffers[(int)dqbuf.index]->GetVU()->Address);
 
                         window.SwapBuffers();
 
+						++frames;
 
                         // Re-queue buffer
                         ret = ioctl(mfc_fd, VIDIOC_QBUF, &dqbuf);
