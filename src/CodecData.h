@@ -46,13 +46,15 @@ public:
 
 
     template<typename T>
-    static std::vector<std::shared_ptr<T>> RequestBuffers(int fd, v4l2_buf_type type, v4l2_memory memory, int count, bool enqueue) //where T: CodecData, new()
+    static std::vector<std::shared_ptr<T>> RequestBuffers(int fd, v4l2_buf_type type, int count, bool enqueue) //where T: CodecData, new()
     {
+		// Note: MFC (4.9.y) only supports V4L2_MEMORY_MMAP
+
         // Reqest input buffers
         v4l2_requestbuffers reqbuf = {0};
         reqbuf.count = (uint)count;
         reqbuf.type = (uint)type;
-        reqbuf.memory = (uint)memory;
+        reqbuf.memory = V4L2_MEMORY_MMAP;	
 
         if (ioctl(fd, VIDIOC_REQBUFS, &reqbuf) != 0)
             throw Exception("VIDIOC_REQBUFS failed.");
@@ -74,7 +76,7 @@ public:
 
             v4l2_buffer buf = {0};
             buf.type = (uint)type;
-            buf.memory = (uint)memory;
+            buf.memory = reqbuf.memory;
             buf.index = (uint)n;
             buf.m.planes = planes;
             buf.length = (uint)codecData->planesCount;

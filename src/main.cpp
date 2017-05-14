@@ -93,7 +93,6 @@ int main()
     std::vector<std::shared_ptr<MediaStreamCodecData>> inBuffers =
                 CodecData::RequestBuffers<MediaStreamCodecData>(mfc_fd,
                         V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
-                        V4L2_MEMORY_MMAP,
                         STREAM_BUFFER_CNT,
                         false);
 	printf("Requesting input buffers = OK.\n");
@@ -320,7 +319,6 @@ int main()
                     // request the buffers
                     decodeBuffers = CodecData::RequestBuffers<NV12CodecData>(mfc_fd,
                                     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
-                                    V4L2_MEMORY_MMAP,
                                     ctrl.value,
                                     true);
 
