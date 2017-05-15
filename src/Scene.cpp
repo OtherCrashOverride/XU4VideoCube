@@ -3,6 +3,21 @@
 #include "Exception.h"
 #include "Matrix4.h"
 #include "NV12Shader.h"
+#include "Egl.h"
+
+#include <xf86drm.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <drm/drm_fourcc.h>
+#include <string.h>
+
+#define EGL_EGLEXT_PROTOTYPES 1
+#include <EGL/eglext.h>
+
+//#define GL_GLEXT_PROTOTYPES 1
+#include <GLES2/gl2ext.h>
 
 
 //Draws a series of triangles (three-sided polygons) using vertices v0, v1, v2, then v2, v1, v3 (note the order), then v2, v3, v4, and so on.
@@ -179,7 +194,7 @@ void Scene::Load()
     OpenGL::CheckError();
 
     yTexture = textures[0];
-    vuTexture = textures[1];
+    //vuTexture = textures[1];
 
 
     // Set shader textures
@@ -190,11 +205,11 @@ void Scene::Load()
     OpenGL::CheckError();
 
 
-    openGLUniformLocation = glGetUniformLocation(nv12Program, "VUMap");
-    OpenGL::CheckError();
+    //openGLUniformLocation = glGetUniformLocation(nv12Program, "VUMap");
+    //OpenGL::CheckError();
 
-    glUniform1i(openGLUniformLocation, 1);
-    OpenGL::CheckError();
+ /*   glUniform1i(openGLUniformLocation, 1);
+    OpenGL::CheckError();*/
 
 
     // Get shader uniforms
@@ -226,7 +241,38 @@ void Scene::Load()
 
 }
 
-void Scene::CreateTextures(int width, int height, int cropX, int cropY, int cropWidth, int cropHeight)
+int Scene::CreateBuffer(int fd, Display* dpy, int width, int height, int bpp)
+{
+	// Create dumb buffer
+	drm_mode_create_dumb buffer = { 0 };
+	buffer.width = width;
+	buffer.height = height;
+	buffer.bpp = bpp;
+
+	int ret = drmIoctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &buffer);
+	if (ret < 0)
+	{
+		throw Exception("DRM_IOCTL_MODE_CREATE_DUMB failed.");
+	}
+
+
+	// Get the dmabuf for the buffer
+	drm_prime_handle prime = { 0 };
+	prime.handle = buffer.handle;
+	prime.flags = DRM_CLOEXEC | DRM_RDWR;
+
+	ret = drmIoctl(fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &prime);
+	if (ret < 0)
+	{
+		throw Exception("DRM_IOCTL_PRIME_HANDLE_TO_FD failed.");
+	}
+
+
+	return prime.fd;
+}
+
+
+void Scene::CreateTextures(int drmfd, Display* dpy, EGLDisplay eglDisplay, int width, int height, int cropX, int cropY, int cropWidth, int cropHeight)
 {
     if (width < 1 || height < 1)
         throw Exception ("Invalid texture size.");
@@ -238,6 +284,71 @@ void Scene::CreateTextures(int width, int height, int cropX, int cropY, int crop
     this->width = width;
     this->height = height;
 
+
+
+	int dmafd = CreateBuffer(drmfd, dpy, width, height, 32);
+
+	// Map the buffer to userspace
+	frame = mmap(NULL, width * height, PROT_READ | PROT_WRITE, MAP_SHARED, dmafd, 0);
+	if (frame == MAP_FAILED)
+	{
+		throw Exception("mmap failed.");
+	}
+
+
+	int dmafd2 = CreateBuffer(drmfd, dpy, width, height / 2, 32);
+
+	// Map the buffer to userspace (TODO: size to UV)
+	frame2 = mmap(NULL, width * height / 2, PROT_READ | PROT_WRITE, MAP_SHARED, dmafd2, 0);
+	if (frame2 == MAP_FAILED)
+	{
+		throw Exception("mmap 2 failed.");
+	}
+
+
+	// EGL_EXT_image_dma_buf_import
+	EGLint img_attrs[] = {
+		EGL_WIDTH, width,
+		EGL_HEIGHT, height,
+		EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_NV12	, //DRM_FORMAT_NV12,
+		EGL_DMA_BUF_PLANE0_FD_EXT, dmafd,
+		EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
+		EGL_DMA_BUF_PLANE0_PITCH_EXT, width,
+		EGL_DMA_BUF_PLANE1_FD_EXT, dmafd2,
+		EGL_DMA_BUF_PLANE1_OFFSET_EXT, 0,
+		EGL_DMA_BUF_PLANE1_PITCH_EXT, width,
+		EGL_YUV_COLOR_SPACE_HINT_EXT, EGL_ITU_REC601_EXT,
+		EGL_SAMPLE_RANGE_HINT_EXT, EGL_YUV_NARROW_RANGE_EXT,
+		EGL_NONE
+	};
+
+	EGLImageKHR image = eglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, 0, img_attrs);
+	Egl::CheckError();
+
+	fprintf(stderr, "EGLImageKHR = %p\n", image);
+
+
+	// Texture
+	glActiveTexture(GL_TEXTURE0);
+	OpenGL::CheckError();
+
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, yTexture);
+	OpenGL::CheckError();
+
+	glTexParameterf(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	OpenGL::CheckError();
+
+	glTexParameterf(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	OpenGL::CheckError();
+
+	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+	OpenGL::CheckError();
+
+
+
+
+
+#if 0
     // Create the textures and reserve memory
     glActiveTexture(GL_TEXTURE0);
     OpenGL::CheckError();
@@ -269,7 +380,7 @@ void Scene::CreateTextures(int width, int height, int cropX, int cropY, int crop
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     OpenGL::CheckError();
-
+#endif
 
     // Set texture crop
     float scaleX = (float)cropWidth / (float)width;
@@ -296,6 +407,17 @@ void Scene::Draw(void* yData, void* vuData)
         throw Exception ("Invalid texture state.");
 
 
+	memcpy(frame, yData, width * height);
+	memcpy(frame2, vuData, width * height / 2);
+	//memcpy((uint8_t*)frame + (width * height), vuData, width * height / 2);
+
+	glActiveTexture(GL_TEXTURE0);
+	OpenGL::CheckError();
+
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, yTexture);
+	OpenGL::CheckError();
+
+#if 0
     // Upload texture data
     glActiveTexture(GL_TEXTURE0);
     OpenGL::CheckError();
@@ -315,6 +437,7 @@ void Scene::Draw(void* yData, void* vuData)
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width / 2, height / 2 , GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, vuData);
     OpenGL::CheckError();
+#endif
 
 
 

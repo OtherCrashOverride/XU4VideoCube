@@ -23,6 +23,7 @@ void main()\n \
 \n \
  ";
 
+#if 0
 const char* NV12Shader::fragmentSource = "\n \
 uniform lowp sampler2D DiffuseMap;\n \
 uniform lowp sampler2D VUMap;\n \
@@ -50,6 +51,20 @@ void main()\n \
 }\n \
 \n \
 ";
+#else
+const char* NV12Shader::fragmentSource = "#extension GL_OES_EGL_image_external : require\n \
+uniform lowp samplerExternalOES DiffuseMap;\n \
+\n \
+varying mediump vec2 TexCoord0;\n \
+\n \
+void main()\n \
+{\n \
+  lowp vec4 rgb = texture2D(DiffuseMap, TexCoord0);\n \
+  gl_FragColor = rgb;\n \
+}\n \
+\n \
+";
+#endif
 
 GLuint NV12Shader::CreateShader(GLenum shaderType, const char* sourceCode)
 {

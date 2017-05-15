@@ -7,7 +7,8 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <vector>
-
+#include <sys/stat.h>
+#include <fcntl.h>
 
 class Buffer
 {
@@ -15,6 +16,7 @@ public:
     size_t Offset = 0;
     void* Address = 0;
     size_t Length = 0;
+	int Dmabuf = 0;
 };
 
 class CodecData
@@ -92,15 +94,42 @@ public:
 
             for (int i = 0; i < codecData->planesCount; ++i)
             {
+				v4l2_exportbuffer expbuf = { 0 };
+				expbuf.type = buf.type;
+				expbuf.index = buf.index;
+				expbuf.plane = i;
+				expbuf.flags = O_RDWR;
+
+				//ret = ioctl(fd, VIDIOC_EXPBUF, &expbuf);
+				//if (ret < 0)
+				//{
+				//	throw Exception("VIDIOC_EXPBUF failed.");
+				//}
+
+				// ---
                 codecData->Index = n;
 
                 codecData->planes[i]->Offset = planes[i].m.mem_offset;
+				
+				codecData->planes[i]->Dmabuf = expbuf.fd;
 
                 codecData->planes[i]->Address = mmap(nullptr, planes[i].length,
                                                      PROT_READ | PROT_WRITE,
                                                      MAP_SHARED,
                                                      fd,
                                                      (int)planes[i].m.mem_offset);
+
+				//codecData->planes[i]->Address = mmap(NULL,
+				//	planes[i].length,
+				//	PROT_READ | PROT_WRITE,
+				//	MAP_SHARED,
+				//	expbuf.fd,
+				//	0);
+				if (codecData->planes[i]->Address == MAP_FAILED)
+				{
+					printf("mmap failed: dmabuf=%d\n", expbuf.fd);
+					throw Exception("mmap failed.");
+				}
 
                 codecData->planes[i]->Length = planes[i].length;
             }

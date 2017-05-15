@@ -1,8 +1,11 @@
 #pragma once
 
 #include "OpenGL.h"
+#include "Egl.h"
 
 //#include <GLES2/gl2.h>
+
+#include <X11/Xlib.h>
 
 enum class SceneMode
 {
@@ -14,7 +17,7 @@ enum class SceneMode
 class Scene
 {
     GLuint yTexture = 0;
-    GLuint vuTexture = 0;
+    //GLuint vuTexture = 0;
     int width = 0;
     int height = 0;
     int cropX;
@@ -35,6 +38,11 @@ class Scene
     static const float quad[];
     static const float quadUV[];
 
+	void* frame = nullptr;
+	void* frame2 = nullptr;
+
+	int CreateBuffer(int fd, Display* dpy, int width, int height, int bpp);
+
 public:
 
     SceneMode GetSceneMode() const
@@ -54,7 +62,7 @@ public:
 
     void Load();
 
-    void CreateTextures(int width, int height, int cropX, int cropY, int cropWidth, int cropHeight);
+    void CreateTextures(int drmfd, Display* dpy, EGLDisplay eglDisplay, int width, int height, int cropX, int cropY, int cropWidth, int cropHeight);
 
     void Draw(void* yData, void* vuData);
 

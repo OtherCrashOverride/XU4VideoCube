@@ -25,6 +25,18 @@ class X11Window
     Atom wm_delete_window;
 
 public:
+
+	Display* X11Display() const
+	{
+		return x11Display;
+	}
+
+	EGLDisplay EglDisplay() const
+	{
+		return eglDisplay;
+	}
+
+
     X11Window(int width, int height, const char* title);
     virtual ~X11Window();
 

@@ -17,6 +17,16 @@
 #include <mutex>
 #include <chrono>
 
+#include <xf86drm.h>
+#include <drm/drm_fourcc.h>
+#include <sys/mman.h>
+
+// libdri2 is not aware of C++
+extern "C"
+{
+#include <X11/extensions/dri2.h>
+}
+
 
 bool isRunning;
 
@@ -40,31 +50,31 @@ class Mfc
 
 	void WorkThread()
 	{
-		// Get the number of buffers required
-		v4l2_control ctrl = { 0 };
-		ctrl.id = V4L2_CID_MIN_BUFFERS_FOR_CAPTURE;
+		//// Get the number of buffers required
+		//v4l2_control ctrl = { 0 };
+		//ctrl.id = V4L2_CID_MIN_BUFFERS_FOR_CAPTURE;
 
-		int ret = ioctl(mfc_fd, VIDIOC_G_CTRL, &ctrl);
-		if (ret != 0)
-		{
-			throw Exception("VIDIOC_G_CTRL failed.");
-		}
+		//int ret = ioctl(mfc_fd, VIDIOC_G_CTRL, &ctrl);
+		//if (ret != 0)
+		//{
+		//	throw Exception("VIDIOC_G_CTRL failed.");
+		//}
 
-		// request the buffers
-		outBuffers = CodecData::RequestBuffers<NV12CodecData>(mfc_fd,
-			V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
-			ctrl.value,
-			true);
+		//// request the buffers
+		//outBuffers = CodecData::RequestBuffers<NV12CodecData>(mfc_fd,
+		//	V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+		//	ctrl.value,
+		//	true);
 
 
-		// Start streaming the capture
-		int val = (int)V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+		//// Start streaming the capture
+		//int val = (int)V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 
-		ret = ioctl(mfc_fd, VIDIOC_STREAMON, &val);
-		if (ret != 0)
-		{
-			throw Exception("VIDIOC_STREAMON failed.");
-		}
+		//ret = ioctl(mfc_fd, VIDIOC_STREAMON, &val);
+		//if (ret != 0)
+		//{
+		//	throw Exception("VIDIOC_STREAMON failed.");
+		//}
 
 		while (isRunning)
 		{
@@ -81,19 +91,24 @@ class Mfc
 			int ret = ioctl(mfc_fd, VIDIOC_DQBUF, &dqbuf);
 			if (ret < 0)
 			{
-				throw Exception("Dequeue: VIDIOC_DQBUF failed.");
+				//throw Exception("WorkThread: VIDIOC_DQBUF failed.");
+				printf("WorkThread: VIDIOC_DQBUF failed. (%d)\n", ret);
 			}
+			else
+			{
+				//printf("V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE buffer dequeued.\n");
 
-			//printf("V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE buffer dequeued.\n");
+				//scene.Draw(decodeBuffers[(int)dqbuf.index]->GetY()->Address,
+				//	decodeBuffers[(int)dqbuf.index]->GetVU()->Address);
 
-			//scene.Draw(decodeBuffers[(int)dqbuf.index]->GetY()->Address,
-			//	decodeBuffers[(int)dqbuf.index]->GetVU()->Address);
+				mutex.lock();
+				//available = outBuffers[(int)dqbuf.index];
+				availableOutBuffers.push(outBuffers[(int)dqbuf.index]);
 
-			mutex.lock();
-			//available = outBuffers[(int)dqbuf.index];
-			availableOutBuffers.push(outBuffers[(int)dqbuf.index]);
+				mutex.unlock();
 
-			mutex.unlock();
+				printf("WorkThread: VIDIOC_DQBUF OK.\n");
+			}
 
 			//window.SwapBuffers();
 
@@ -104,6 +119,8 @@ class Mfc
 			//{
 			//	throw Exception("Dequeue: VIDIOC_QBUF failed.");
 			//}
+
+			std::this_thread::yield();
 		}
 	}
 
@@ -114,7 +131,7 @@ public:
 	Mfc()
 	{
 		// O_NONBLOCK prevents deque operations from blocking if no buffers are ready
-		mfc_fd = open(decoderName, O_RDWR, 0);
+		mfc_fd = open(decoderName, O_RDWR | O_NONBLOCK, 0);
 		if (mfc_fd < 0)
 		{
 			throw Exception("Failed to open MFC");
@@ -222,7 +239,7 @@ public:
 		//printf("Mfc::Enqueue: bytes.size()=%d\n", bytes.size());
 
 		// Deque any available buffers
-		while (true)
+		while (freeBuffers.size() < 1)
 		{
 			v4l2_plane dqplanes2[4];
 
@@ -236,17 +253,21 @@ public:
 			if (ret < 0)
 			{
 				//throw Exception("Enqueue: VIDIOC_DQBUF failed.");
-				break;
+				//if (ret != -EAGAIN)
+				//	break;
+
+				std::this_thread::yield();
 			}
-
-			//printf("Mfc::Enqueue: dequeues buffer %d\n", dqbuf.index);
-			freeBuffers.push((int)dqbuf.index);
-
-			break;
+			else
+			{
+				//printf("Mfc::Enqueue: dequeues buffer %d\n", dqbuf.index);
+				freeBuffers.push((int)dqbuf.index);
+			}
+			//break;
 		}
 
-		if (freeBuffers.size() < 1)
-			throw Exception("Enqueue: No free buffers.");
+		//if (freeBuffers.size() < 1)
+		//	throw Exception("Enqueue: No free buffers.");
 
 
 		// Copy the data to the buffer
@@ -280,6 +301,18 @@ public:
 
 	bool Dequeue(Scene& scene)
 	{
+		int val;
+		int ret;
+
+		// Start streaming the capture
+		val = (int)V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+
+		ret = ioctl(mfc_fd, VIDIOC_STREAMON, &val);
+		if (ret != 0)
+		{
+			//throw Exception("VIDIOC_STREAMON failed.");
+		}
+
 		//// Note: Must have valid planes because its written to by codec
 		//v4l2_plane dqplanes[4] = { 0 };
 		//v4l2_buffer dqbuf = { 0 };
@@ -299,7 +332,40 @@ public:
 		////printf("V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE buffer dequeued.\n");
 		bool result = false;
 
-		mutex.lock();
+
+		// Note: Must have valid planes because its written to by codec
+		v4l2_plane dqplanes[4] = { 0 };
+		v4l2_buffer dqbuf = { 0 };
+
+		// Deque decoded
+		dqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+		dqbuf.memory = V4L2_MEMORY_MMAP;
+		dqbuf.m.planes = dqplanes;
+		dqbuf.length = 2;
+
+		ret = ioctl(mfc_fd, VIDIOC_DQBUF, &dqbuf);
+		if (ret < 0)
+		{
+			//throw Exception("WorkThread: VIDIOC_DQBUF failed.");
+			//printf("WorkThread: VIDIOC_DQBUF failed. (%d)\n", ret);
+		}
+		else
+		{
+			//printf("V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE buffer dequeued.\n");
+
+			//scene.Draw(decodeBuffers[(int)dqbuf.index]->GetY()->Address,
+			//	decodeBuffers[(int)dqbuf.index]->GetVU()->Address);
+
+			//mutex.lock();
+			//available = outBuffers[(int)dqbuf.index];
+			availableOutBuffers.push(outBuffers[(int)dqbuf.index]);
+
+			//mutex.unlock();
+
+			//printf("WorkThread: VIDIOC_DQBUF OK.\n");
+		}
+
+		//mutex.lock();
 
 		if (availableOutBuffers.size() > 0)
 		{
@@ -312,23 +378,30 @@ public:
 
 			// Re-queue buffer
 			v4l2_plane dqplanes[4] = { 0 };
-			v4l2_buffer dqbuf = { 0 };
+			v4l2_buffer qbuf = { 0 };
+			qbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+			qbuf.memory = V4L2_MEMORY_MMAP;
+			qbuf.m.planes = dqplanes;
+			qbuf.length = 4;
+			qbuf.index = available->Index;
 
-			// Deque decoded
-			dqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-			dqbuf.memory = V4L2_MEMORY_MMAP;
-			dqbuf.m.planes = dqplanes;
-			dqbuf.length = 2;
-			dqbuf.index = available->Index;
-
-			int ret = ioctl(mfc_fd, VIDIOC_QBUF, &dqbuf);
+			int ret = ioctl(mfc_fd, VIDIOC_QUERYBUF, &qbuf);
 			if (ret != 0)
 			{
+				throw Exception("VIDIOC_QUERYBUF failed.");
+			}
+
+			// Requeue buffer
+			ret = ioctl(mfc_fd, VIDIOC_QBUF, &qbuf);
+			if (ret != 0)
+			{
+				//printf("Dequeue: VIDIOC_QBUF failed. (%d)", ret);
 				throw Exception("Dequeue: VIDIOC_QBUF failed.");
-			}			
+			}
+
 		}
 
-		mutex.unlock();
+		//mutex.unlock();
 
 		////window.SwapBuffers();
 
@@ -354,6 +427,7 @@ public:
 			throw Exception("VIDIOC_STREAMON failed.");
 		}
 
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 
 		// After header is parsed, capture queue can be setup
 
@@ -384,7 +458,33 @@ public:
 
 
 		isRunning = true;
-		thread = std::thread(&Mfc::WorkThread, this);
+		//thread = std::thread(&Mfc::WorkThread, this);
+
+		// Get the number of buffers required
+		v4l2_control ctrl = { 0 };
+		ctrl.id = V4L2_CID_MIN_BUFFERS_FOR_CAPTURE;
+
+		ret = ioctl(mfc_fd, VIDIOC_G_CTRL, &ctrl);
+		if (ret != 0)
+		{
+			throw Exception("VIDIOC_G_CTRL failed.");
+		}
+
+		// request the buffers
+		outBuffers = CodecData::RequestBuffers<NV12CodecData>(mfc_fd,
+			V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+			ctrl.value,
+			true);
+
+
+		// Start streaming the capture
+		val = (int)V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+
+		ret = ioctl(mfc_fd, VIDIOC_STREAMON, &val);
+		if (ret != 0)
+		{
+			throw Exception("VIDIOC_STREAMON failed.");
+		}
 	}
 
 	void StreamOff()
@@ -417,6 +517,39 @@ void SignalHandler(int s)
 	isRunning = false;
 }
 
+int OpenDRM(Display* dpy)
+{
+	int fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+	{
+		throw Exception("DRM device open failed.");
+	}
+
+	uint64_t hasDumb;
+	if (drmGetCap(fd, DRM_CAP_DUMB_BUFFER, &hasDumb) < 0 ||
+		!hasDumb)
+	{
+		throw Exception("DRM device does not support dumb buffers");
+	}
+
+
+	// Obtain DRM authorization
+	drm_magic_t magic;
+	if (drmGetMagic(fd, &magic))
+	{
+		throw Exception("drmGetMagic failed");
+	}
+
+	Window root = RootWindow(dpy, DefaultScreen(dpy));
+	if (!DRI2Authenticate(dpy, root, magic))
+	{
+		throw Exception("DRI2Authenticate failed");
+	}
+
+
+	return fd;
+}
+
 
 int main()
 {
@@ -427,6 +560,11 @@ int main()
 
 	X11Window window(1280, 720, "Odroid XU4 Video Cube");
 
+
+	int drmfd = OpenDRM(window.X11Display());
+
+
+	// --
 
 	Scene scene;
 	scene.Load();
@@ -583,8 +721,8 @@ int main()
 			//memcpy(&bytes[0], buffer, bufferCount);
 			//offset += bufferCount;
 
-			while (offset < bufferCount)
-			{
+			//while (offset < bufferCount)
+			//{
 				unsigned char read = buffer[offset];
 				++offset;
 
@@ -594,9 +732,9 @@ int main()
 				start = start << 8;
 				start |= read;
 
-				if (start == 0x00000001)
-					break;
-			}
+			//	if (start == 0x00000001)
+			//		break;
+			//}
 
 			if (bytes.size() > 4 &&
 				start == 0x00000001)
@@ -607,7 +745,7 @@ int main()
 				//bool queueAccepted = false;
 				//while (!queueAccepted)
 				{
-					if (mfc.freeBuffers.size() > 0)
+					//if (mfc.freeBuffers.size() > 0)
 					{
 #if 0
 						//               // Copy the data to the buffer
@@ -649,7 +787,8 @@ int main()
 							mfc.StreamOn(captureWidth, captureHeigh, crop);
 
 							// Creat the rendering textures
-							scene.CreateTextures(captureWidth, captureHeigh,
+							scene.CreateTextures(drmfd, window.X11Display(), window.EglDisplay(),
+								captureWidth, captureHeigh,
 								crop.c.left, crop.c.top,
 								crop.c.width, crop.c.height);
 
@@ -858,7 +997,7 @@ int main()
 					} while (action != Action::Nothing);
 
 					//Yield
-					std::this_thread::yield();
+					//std::this_thread::yield();
 				}
 
 				//printf("Buffer sent to codec.\n");
@@ -875,7 +1014,7 @@ int main()
 		}
 
 	}
-	catch (const std::exception&)
+	catch (...)
 	{
 		printf("Caught exception. Exiting.\n");
 	}
