@@ -374,7 +374,8 @@ public:
 			std::shared_ptr<NV12CodecData> available = availableOutBuffers.front();
 			availableOutBuffers.pop();
 
-			scene.Draw(available->GetY()->Address, available->GetVU()->Address);
+			//scene.Draw(available->GetY()->Address, available->GetVU()->Address);
+			scene.Draw(available->GetY()->Dmabuf, available->GetVU()->Dmabuf);
 
 			// Re-queue buffer
 			v4l2_plane dqplanes[4] = { 0 };
@@ -566,7 +567,7 @@ int main()
 
 	// --
 
-	Scene scene;
+	Scene scene(&window);
 	scene.Load();
 
 #if 0
@@ -787,10 +788,13 @@ int main()
 							mfc.StreamOn(captureWidth, captureHeigh, crop);
 
 							// Creat the rendering textures
-							scene.CreateTextures(drmfd, window.X11Display(), window.EglDisplay(),
-								captureWidth, captureHeigh,
-								crop.c.left, crop.c.top,
-								crop.c.width, crop.c.height);
+							//scene.CreateTextures(drmfd, window.X11Display(), window.EglDisplay(),
+							//	captureWidth, captureHeigh,
+							//	crop.c.left, crop.c.top,
+							//	crop.c.width, crop.c.height);
+							scene.SetTextureProperties(captureWidth, captureHeigh,
+									crop.c.left, crop.c.top,
+									crop.c.width, crop.c.height);
 
 							isStreaming = true;
 						}

@@ -6,6 +6,7 @@
 //#include <GLES2/gl2.h>
 
 #include <X11/Xlib.h>
+#include <map>
 
 enum class SceneMode
 {
@@ -13,9 +14,11 @@ enum class SceneMode
     Quad
 };
 
+class X11Window;
 
 class Scene
 {
+	X11Window* x11Window;
     GLuint yTexture = 0;
     //GLuint vuTexture = 0;
     int width = 0;
@@ -41,6 +44,8 @@ class Scene
 	void* frame = nullptr;
 	void* frame2 = nullptr;
 
+	std::map<int, GLuint> dmabufMap;
+
 	int CreateBuffer(int fd, Display* dpy, int width, int height, int bpp);
 
 public:
@@ -55,7 +60,8 @@ public:
     }
 
 
-    Scene()
+    Scene(X11Window* x11Window)
+		: x11Window(x11Window)
     {
     }
 
@@ -63,8 +69,20 @@ public:
     void Load();
 
     void CreateTextures(int drmfd, Display* dpy, EGLDisplay eglDisplay, int width, int height, int cropX, int cropY, int cropWidth, int cropHeight);
+	
+	void SetTextureProperties(int width, int height, int cropX, int cropY, int cropWidth, int cropHeight)
+	{
+		this->width = width;
+		this->height = height;
+		this->cropX = cropX;
+		this->cropY = cropY;
+		this->cropWidth = cropWidth;
+		this->cropHeight = cropHeight;
+	}
+	
+	GLuint GetTexutreForDmabuf(int dmafd, int dmafd2);
 
-    void Draw(void* yData, void* vuData);
+    void Draw(int yData, int vuData);
 
 };
 

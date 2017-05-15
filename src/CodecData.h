@@ -100,11 +100,11 @@ public:
 				expbuf.plane = i;
 				expbuf.flags = O_RDWR;
 
-				//ret = ioctl(fd, VIDIOC_EXPBUF, &expbuf);
-				//if (ret < 0)
-				//{
-				//	throw Exception("VIDIOC_EXPBUF failed.");
-				//}
+				ret = ioctl(fd, VIDIOC_EXPBUF, &expbuf);
+				if (ret < 0)
+				{
+					throw Exception("VIDIOC_EXPBUF failed.");
+				}
 
 				// ---
                 codecData->Index = n;

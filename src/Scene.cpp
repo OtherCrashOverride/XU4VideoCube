@@ -19,6 +19,8 @@
 //#define GL_GLEXT_PROTOTYPES 1
 #include <GLES2/gl2ext.h>
 
+#include "X11Window.h"
+
 
 //Draws a series of triangles (three-sided polygons) using vertices v0, v1, v2, then v2, v1, v3 (note the order), then v2, v3, v4, and so on.
 const float Scene::quadx[]
@@ -398,8 +400,101 @@ void Scene::CreateTextures(int drmfd, Display* dpy, EGLDisplay eglDisplay, int w
 
 }
 
-void Scene::Draw(void* yData, void* vuData)
+GLuint Scene::GetTexutreForDmabuf(int dmafd, int dmafd2)
 {
+	// TODO: account for different dmabuf pairs
+
+	GLuint result;
+	
+	auto iter = dmabufMap.find(dmafd);
+	if (iter == dmabufMap.end())
+	{
+		// Create texture
+		GLuint texture;
+		glGenTextures(1, &texture);
+		OpenGL::CheckError();
+
+		dmabufMap[dmafd] = texture;
+		result = texture;
+
+
+		// EGL_EXT_image_dma_buf_import
+		EGLint img_attrs[] = {
+			EGL_WIDTH, width,
+			EGL_HEIGHT, height,
+			EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_NV12	, //DRM_FORMAT_NV12,
+			EGL_DMA_BUF_PLANE0_FD_EXT, dmafd,
+			EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
+			EGL_DMA_BUF_PLANE0_PITCH_EXT, width,
+			EGL_DMA_BUF_PLANE1_FD_EXT, dmafd2,
+			EGL_DMA_BUF_PLANE1_OFFSET_EXT, 0,
+			EGL_DMA_BUF_PLANE1_PITCH_EXT, width,
+			EGL_YUV_COLOR_SPACE_HINT_EXT, EGL_ITU_REC601_EXT,
+			EGL_SAMPLE_RANGE_HINT_EXT, EGL_YUV_NARROW_RANGE_EXT,
+			EGL_NONE
+		};
+
+		EGLImageKHR image = eglCreateImageKHR(x11Window->EglDisplay(), EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, 0, img_attrs);
+		Egl::CheckError();
+
+		fprintf(stderr, "EGLImageKHR = %p, width=%d, height=%d\n", image, width, height);
+
+
+		// Texture
+		glActiveTexture(GL_TEXTURE0);
+		OpenGL::CheckError();
+
+		glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
+		OpenGL::CheckError();
+
+		glTexParameterf(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		OpenGL::CheckError();
+
+		glTexParameterf(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		OpenGL::CheckError();
+
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+		OpenGL::CheckError();
+	}
+	else
+	{
+		result = iter->second;
+	}
+
+	return result;
+}
+
+void Scene::Draw(int yData, int vuData)
+{
+	GLuint y = GetTexutreForDmabuf(yData, vuData);
+
+
+	glActiveTexture(GL_TEXTURE0);
+	OpenGL::CheckError();
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, y);
+	OpenGL::CheckError();
+
+
+	// Set texture crop
+	float scaleX = (float)cropWidth / (float)width;
+	float scaleY = (float)cropHeight / (float)height;
+
+	glUniform2f(textureScaleUniform, scaleX, scaleY);
+	OpenGL::CheckError();
+
+
+	float offsetX = (float)cropX / (float)width;
+	float offsetY = (float)cropY / (float)height;
+
+	glUniform2f(textureOffsetUniform, offsetX, offsetY);
+	OpenGL::CheckError();
+
+	//glActiveTexture(GL_TEXTURE1);
+	//OpenGL::CheckError();
+	//glBindTexture(GL_TEXTURE_EXTERNAL_OES, uv);
+	//OpenGL::CheckError();
+
+#if 0
     if (yData == nullptr || vuData == nullptr)
         throw Exception("Invalid arguments.");
 
@@ -416,6 +511,7 @@ void Scene::Draw(void* yData, void* vuData)
 
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, yTexture);
 	OpenGL::CheckError();
+#endif
 
 #if 0
     // Upload texture data
