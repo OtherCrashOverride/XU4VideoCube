@@ -46,7 +46,9 @@ class Scene
 
 	std::map<int, GLuint> dmabufMap;
 
-	int CreateBuffer(int fd, Display* dpy, int width, int height, int bpp);
+
+	GLuint GetTexutreForDmabuf(int dmafd, int dmafd2);
+
 
 public:
 
@@ -67,8 +69,6 @@ public:
 
 
     void Load();
-
-    void CreateTextures(int drmfd, Display* dpy, EGLDisplay eglDisplay, int width, int height, int cropX, int cropY, int cropWidth, int cropHeight);
 	
 	void SetTextureProperties(int width, int height, int cropX, int cropY, int cropWidth, int cropHeight)
 	{
@@ -80,8 +80,6 @@ public:
 		this->cropHeight = cropHeight;
 	}
 	
-	GLuint GetTexutreForDmabuf(int dmafd, int dmafd2);
-
     void Draw(int yData, int vuData);
 
 };
